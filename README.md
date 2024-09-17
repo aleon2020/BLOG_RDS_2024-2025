@@ -1,15 +1,15 @@
 # BLOG_RDS_2024-2025
 
-¡Bienvenido! Soy Alberto León Luengo, alumno matriculado en el grado de Ingeniería en Robótica Software, y en este repositorio se encuentra todos los ficheros, imágenes, vídeos, código fuente, etc ... que he utilizado para crear los blogs de cada una de las prácticas realizadas en la asignatura de Robótica de Servicio.
+Welcome! I am Alberto León Luengo, a student enrolled in the Robotics Software Engineering degree, and in this repository you will find all the files, images, videos, source code, etc... that I have used to create the blogs for each of the practices carried out in the subject of Service Robotics.
 
-A continuación adjunto varios enlaces correspondientes a cada uno de los blogs realizados para llevar a cabo cada una de las prácticas que se nos han ido mandando a lo largo de la asignatura:
+Below I attach several links corresponding to each of the blogs made to carry out each of the practices that have been sent to us throughout the subject:
 
-* BLOG PRÁCTICA 1
+* [PRACTICE BLOG 1](https://github.com/aleon2020/BLOG_RDS_2024-2025/wiki/P1.-Localized-Vacuum-Cleaner)
 
-* BLOG PRÁCTICA 2
+* [PRACTICE BLOG 2](https://github.com/aleon2020/BLOG_RDS_2024-2025/wiki/P2.-X)
 
-* BLOG PRÁCTICA 3
- 
-* BLOG PRÁCTICA 4
+* [PRACTICE BLOG 3](https://github.com/aleon2020/BLOG_RDS_2024-2025/wiki/P3.-X)
 
-* BLOG PRÁCTICA 5
+* [PRACTICE BLOG 4](https://github.com/aleon2020/BLOG_RDS_2024-2025/wiki/P4.-X)
+
+* [PRACTICE BLOG 5](https://github.com/aleon2020/BLOG_RDS_2024-2025/wiki/P5.-X)
