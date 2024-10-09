@@ -38,10 +38,6 @@ class Cell:
     self.east_neighbor = 0
     self.south_neighbor = 0
     self.west_neighbor = 0
-    self.northeast_neighbor = 0
-    self.southeast_neighbor = 0
-    self.southwest_neighbor = 0
-    self.northwest_neighbor = 0
 
   # visited_cell() function
   # Mark a cell as 'already visited'.
@@ -139,10 +135,6 @@ def set_cell_neighbors(cells):
         cells[row][column].south_neighbor = cells[row + 1][column]
         cells[row][column].east_neighbor = cells[row][column + 1]
         cells[row][column].west_neighbor = cells[row][column - 1]
-        cells[row][column].northeast_neighbor = cells[row - 1][column + 1]
-        cells[row][column].southeast_neighbor = cells[row + 1][column + 1]
-        cells[row][column].southwest_neighbor = cells[row + 1][column - 1]
-        cells[row][column].northwest_neighbor = cells[row - 1][column - 1]
 
 # map_to_cell_conversion() function
 # Converts the map coordinates to their equivalent in the cell.
@@ -161,7 +153,7 @@ def cell_to_map_conversion(cell_x, cell_y):
 # update_neighboring_cells() function
 # Save the neighbors of the cells already visited and the unvisited cells in the neighbor list.
 def update_neighboring_cells(cell):
-  neighbors_list = [cell.north_neighbor, cell.east_neighbor, cell.south_neighbor, cell.west_neighbor, cell.northeast_neighbor, cell.southeast_neighbor, cell.southwest_neighbor, cell.northwest_neighbor]
+  neighbors_list = [cell.north_neighbor, cell.east_neighbor, cell.south_neighbor, cell.west_neighbor]
   for neighbor in neighbors_list:
     if neighbor in free_cells and not neighbor.visited and neighbor not in visited_neighbors: 
       visited_neighbors.append(neighbor)
@@ -366,7 +358,7 @@ while True:
             HAL.setV(0)
             HAL.setW(0.3)
             state = "WEST"
-      elif state == "WEST":
+      elif (state == "WEST"):
         if (current_cell.west_neighbor.obstacle == False) and (current_cell.west_neighbor.visited == False):
           HAL.setV(0.5)
         else:
