@@ -219,7 +219,7 @@ def set_state(orientation):
   return state
 
 # Returns a numpy array with the image data in a 3 dimensional array (R, G, B, A).
-array = image_conversion(GUI.getMap('/RoboticsAcademy/exercises/static/exercises/vacuum_cleaner_loc_newmanager/resources/images/mapgrannyannie.png'))
+array = image_conversion(GUI.getMap('/resources/exercises/vacuum_cleaner_loc/images/mapgrannyannie.png'))
 
 # Initialization of map cells.
 cells = generate_cell_matrix(array)
