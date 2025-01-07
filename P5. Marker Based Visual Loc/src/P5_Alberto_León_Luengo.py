@@ -15,8 +15,6 @@
 # Contains functions that perform numerical calculations and array manipulations.
 # * time module
 # Contains functions related to time measurement and manipulation.
-# * random module
-# Contains functions that generate random numbers and perform random selections.
 import yaml
 from pathlib import Path
 import GUI
