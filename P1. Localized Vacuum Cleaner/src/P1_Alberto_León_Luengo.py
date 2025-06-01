@@ -7,366 +7,201 @@
 # Contains functions that perform numerical calculations and array manipulations.
 # * math module
 # Contains standard math functions such as math.sqrt or math.pi.
-# * OpenCV library class
-# Contains functions that allow you to read/display images and apply different filters to them.
+# * queue module
+# Contains functions for adding/removing items and synchronization between threads.
 import HAL
 import GUI
 import numpy as np
-import math
-import cv2
+import math 
+from queue import Queue
 
-# ROBOT ORIENTATIONS
-WEST_ORIENTATION = 0
-NORTH_ORIENTATION = - math.pi / 2
-EAST_ORIENTATION = -math.pi
-EAST_LEFT_ORIENTATION = math.pi
-SOUTH_ORIENTATION = math.pi / 2
+# INITIALIZATION OF VARIABLES
+grid_cells = []
+obstacle_cells = []
+return_cells = []
+critic_cells = []
 
-# Cell Class
-class Cell:
+# world_to_pixel_transformation() function
+# Converts real world coordinates (x,y) to pixel coordinates on the map.
+def world_to_pixel_transformation(x_world_coordinate, y_world_coordinate):
+  transformed_pixel_coordinates = np.dot(np.array([[-4.77221256e-02,  1.03843339e+02,  4.12187318e+02], [-1.00920862e+02, -6.30253600e-01,  5.73125438e+02]]), np.array([[x_world_coordinate], [y_world_coordinate], [1]]))
+  return transformed_pixel_coordinates[0], transformed_pixel_coordinates[1]
 
-  # __init__() function
-  # Defines a map cell, as well as its coordinates, state, and neighboring cells.
-  def __init__(self, x_cell_center, y_cell_center, cell_row, cell_column):
-    self.row = cell_row
-    self.column = cell_column
-    self.center_x = x_cell_center
-    self.center_y = y_cell_center
-    self.obstacle = False
-    self.visited = False
-    self.north_neighbor = 0
-    self.east_neighbor = 0
-    self.south_neighbor = 0
-    self.west_neighbor = 0
+# pixel_to_world_transformation() function
+# Converts pixel coordinates on the map to real-world coordinates (x,y).
+def pixel_to_world_transformation(x_pixel_coordinate, y_pixel_coordinate):
+  transformed_world_coordinates = np.dot(np.array([[-6.01387637e-05, -9.90872563e-03,  5.70373116e+00], [ 9.62986306e-03, -4.55364259e-06, -3.96669762e+00]]), np.array([[x_pixel_coordinate], [y_pixel_coordinate], [1]]))
+  return transformed_world_coordinates[0], transformed_world_coordinates[1]
 
-  # visited_cell() function
-  # Mark a cell as 'already visited'.
-  def visited_cell(self):
-    self.visited = True
-  
-  # obstacle_cell() function
-  # Mark a cell as an obstacle.
-  def obstacle_cell(self):
-    self.obstacle = True
+# is_obstacle_cell() function
+# Check whether a cell is an obstacle or not.
+def is_obstacle_cell(target_cell):
+  if target_cell in obstacle_cells:
+    return False
+  else:
+    return True
 
-# image_conversion() function
-# Converts the map image to a numerical format so that it can be processed.
-# To do this, the original map is resized and a new empty one is initialized,
-# marking red (132) those pixels that are obstacles and white (127) those that are not.
-def image_conversion(old_map):
-  raw_map = cv2.resize(old_map, (512, 512))
-  new_map = np.zeros((raw_map.shape[0], raw_map.shape[1]))
-  for row in range(new_map.shape[0]):
-    for column in range(new_map.shape[1]):
-      if np.any(raw_map[row, column, :3]) == 1.0:
-        new_map[row, column] = 127
+# find_current_cell_position() function
+# Gets the current position in pixels where the robot is located.
+def find_current_cell_position(current_cell):
+  x_rounded_coordinate = np.around(current_cell[0], 0)
+  y_rounded_coordinate = np.around(current_cell[1], 0)
+  for cell in grid_cells:
+    for (x, y) in cell:
+      if x == x_rounded_coordinate and y == y_rounded_coordinate:
+        return cell
+  return None
+
+# get_current_cell_neighbors() function
+# Returns the neighboring cells of the current cell.
+def get_current_cell_neighbors(current_cell):
+  neighbors_list = []
+  neighbors_list.append(find_current_cell_position((current_cell[0][0], current_cell[0][1] - 33)))
+  neighbors_list.append(find_current_cell_position((current_cell[0][0] - 33, current_cell[0][1])))
+  neighbors_list.append(find_current_cell_position((current_cell[0][0] + 33, current_cell[0][1])))
+  neighbors_list.append(find_current_cell_position((current_cell[0][0], current_cell[0][1] + 33)))
+  return neighbors_list
+
+# compute_cleaning_path() function
+# Calculates the robot's cleaning route by searching for free cells and avoiding obstacles.
+def compute_cleaning_path(actual_cell):
+  cleaning_path = []
+  previous_direction = None
+  while actual_cell is not None:
+    for x, y in actual_cell:
+      if actual_cell in critic_cells:
+        navigation_gridmap[x][y] = 130
       else:
-        new_map[row, column] = 132
-  return new_map
+        navigation_gridmap[x][y] = 132
+    GUI.showNumpy(navigation_gridmap)
+    obstacle_cells.append(actual_cell)
+    neighbors = get_current_cell_neighbors(actual_cell)
+    for neighbor in neighbors:
+      if neighbor != actual_cell or neighbor not in return_cells or is_obstacle_cell(neighbor):
+        return_cells.append(neighbor)
+    target_cell = None
+    target_direction = None
+    if is_obstacle_cell(neighbors[0]):
+      target_cell = neighbors[0]
+      target_direction = "left"
+    elif is_obstacle_cell(neighbors[1]):
+      target_cell = neighbors[1]
+      target_direction = "up"
+    elif is_obstacle_cell(neighbors[2]):
+      target_cell = neighbors[2]
+      target_direction = "down"
+    elif is_obstacle_cell(neighbors[3]):
+      target_cell = neighbors[3]
+      target_direction = "right"
+    else:
+      nearest_cell = None
+      minimum_distance = 1000
+      for cell in return_cells:
+        if cell == actual_cell or is_obstacle_cell(cell) == False:
+          continue
+        distance = math.sqrt((cell[(len(cell) - 1) // 2][0] - actual_cell[(len(actual_cell) - 1) // 2][0]) ** 2 + (cell[(len(cell) - 1) // 2][1] - actual_cell[(len(actual_cell) - 1) // 2][1]) ** 2)
+        if distance < minimum_distance:
+          nearest_cell = cell
+          minimum_distance = distance
+      target_cell = nearest_cell
+      if target_cell not in cleaning_path and target_cell not in critic_cells:
+        cleaning_path.append(actual_cell)
+        cleaning_path.append(target_cell)
+        critic_cells.append(target_cell)
+    if target_direction != previous_direction:
+      if actual_cell not in cleaning_path:
+        cleaning_path.append(actual_cell)
+      previous_direction = target_direction
+    actual_cell = target_cell
+  return cleaning_path
 
-# generate_cell_matrix() function
-# Generate a cell array based on the map, in addition to creating a cell
-# for each initial center position in both X and Y.
-def generate_cell_matrix(raw_map):
-  row, column = raw_map.shape
-  cells_array = [[None] * (column // 17) for _ in range(row // 17)]
-  x_cell_center = 8
-  y_cell_center = 8
-  for i in range(row // 17):
-    x_cell_center = 8
-    for j in range(column // 17):
-      cells_array[i][j] = Cell(x_cell_center, y_cell_center, i, j)
-      x_cell_center += 17
-    y_cell_center += 17
-  return cells_array
+# execute_motion_control() function
+# Controls the robot's movement toward a target position by adjusting speeds and turns.
+def execute_motion_control(destination):
+  heading_error = math.atan2(pixel_to_world_transformation(destination[0], destination[1])[1] - HAL.getPose3d().y, pixel_to_world_transformation(destination[0], destination[1])[0] - HAL.getPose3d().x) - HAL.getPose3d().yaw
+  while abs(heading_error) > 0.018:
+    if heading_error > 0:
+      HAL.setW(0.2)
+    else:
+      HAL.setW(-0.2)
+    heading_error = math.atan2(pixel_to_world_transformation(destination[0], destination[1])[1] - HAL.getPose3d().y, pixel_to_world_transformation(destination[0], destination[1])[0] - HAL.getPose3d().x) - HAL.getPose3d().yaw
+  HAL.setW(0)
+  previous_heading_error = 0
+  distance = math.sqrt((pixel_to_world_transformation(destination[0], destination[1])[0] - HAL.getPose3d().x) ** 2 + (pixel_to_world_transformation(destination[0], destination[1])[1] - HAL.getPose3d().y) ** 2)
+  while distance > 0.1:
+    distance = math.sqrt((pixel_to_world_transformation(destination[0], destination[1])[0] - HAL.getPose3d().x) ** 2 + (pixel_to_world_transformation(destination[0], destination[1])[1] - HAL.getPose3d().y) ** 2)
+    error = math.atan2(pixel_to_world_transformation(destination[0], destination[1])[1] - HAL.getPose3d().y, pixel_to_world_transformation(destination[0], destination[1])[0] - HAL.getPose3d().x) - HAL.getPose3d().yaw
+    derivative_error = (error - previous_heading_error) / 0.1
+    previous_heading_error = error
+    angular_velocity = 0.6 * error + 0.5 * derivative_error
+    if angular_velocity < 0.3 and angular_velocity > -0.3:
+      HAL.setW(angular_velocity)
+    else:
+      HAL.setW(0)
+    HAL.setV(0.2)
+  HAL.setV(0)
+  HAL.setW(0)
+  return
 
-# set_obstacle_cell() function
-# Mark the cell as an obstacle if it is red (132).
-def set_obstacle_cell(cell):
-  corner_x = cell.center_x - 8
-  corner_y = cell.center_y - 8
-  for i in range(17):
-    for j in range(17):
-      if array[i + corner_y, j + corner_x] == 132:
-        cell.obstacle_cell()
-        break
-    if array[i + corner_y, j + corner_x] == 132:
-      break
+# compute_cell_path() function
+# Implements the BFS algorithm to find the best path between two cells.
+def compute_cell_path(start, finish):
+  search_queue = Queue(maxsize = 0) 
+  visited_cells = [] 
+  search_queue.put((start, []))
+  while not search_queue.empty():
+    node, current_path = search_queue.get()
+    if node[0] == finish[0] and node[1] == finish[1]:
+      return current_path
+    if not any((x[0] == node[0] and x[1] == node[1]) for x in visited_cells): 
+      visited_cells.append(node)
+      for child in get_current_cell_neighbors(node):
+        if child is None:
+          continue
+        if not any((x[0] == child[0] and x[1] == child[1]) for x in visited_cells):
+          search_queue.put((child, current_path + [child] ))
+  return current_path
 
-# mark_visited_cell() function
-# Mark the cell blue (128) if it has already been visited, so
-# can no longer pass through there and is considered an obstacle.
-def mark_visited_cell(cell):
-  corner_x = cell.center_x - 8
-  corner_y = cell.center_y - 8
-  for i in range(17):
-    for j in range(17):
-      array[i + corner_y, j + corner_x] = 128
+array = GUI.getMap('/resources/exercises/vacuum_cleaner_loc/images/mapgrannyannie.png')
+GUI.showNumpy(np.zeros((array.shape[0], array.shape[1])))
+navigation_gridmap = np.zeros((array.shape[0], array.shape[1]))
 
-# mark_obstacle_cell() function
-# Mark the red cell (132), so it is considered an obstacle
-# and the robot can no longer pass through there.
-def mark_obstacle_cell(cell):
-  corner_x = cell.center_x - 8
-  corner_y = cell.center_y - 8
-  for i in range(17):
-    for j in range(17):
-      array[i + corner_y, j + corner_x] = 132
+for x in range(0, array.shape[0], 33):
+  for y in range(0, array.shape[1], 33):
+    cell = []
+    for i in range(x, min(x + 33, array.shape[0])):
+      for j in range(y, min(y + 33, array.shape[1])):
+        cell.append((i, j))
+    grid_cells.append(cell)
 
-# mark_critic_cell() function
-# Mark the cell yellow (130) if it is in the one called critical zone, so it redirects its path.
-def mark_critic_cell(cell):
-  corner_x = cell.center_x - 8
-  corner_y = cell.center_y - 8
-  for i in range(17):
-    for j in range(17):
-      array[i + corner_y, j + corner_x] = 130
-
-# set_cell_neighbors() function
-# Sets the neighbors of each cell based on its position in an array of cells, 
-# omitting those that are obstacles.
-def set_cell_neighbors(cells):
-  for row in range(len(cells)):
-    for column in range(len(cells)):
-      if (cells[row][column].obstacle == True):
+for cell in grid_cells:
+  for x, y in cell:
+    if (array[x][y] == 0).any():
+      if cell in obstacle_cells:
         continue
       else:
-        cells[row][column].north_neighbor = cells[row - 1][column]
-        cells[row][column].south_neighbor = cells[row + 1][column]
-        cells[row][column].east_neighbor = cells[row][column + 1]
-        cells[row][column].west_neighbor = cells[row][column - 1]
+        obstacle_cells.append(cell)
+    else:
+      navigation_gridmap[x][y] = 127
 
-# map_to_cell_conversion() function
-# Converts the map coordinates to their equivalent in the cell.
-def map_to_cell_conversion(map_x, map_y):
-  cell_x = round(-2.9555517292899 * map_x + 16.6514905522259)
-  cell_y = round(3.0048943492781 * map_y + 11.6877761275171)
-  return cells[cell_y][cell_x]
+for cell in obstacle_cells:
+  for x, y in cell:
+    navigation_gridmap[x][y] = 128
 
-# cell_to_map_conversion() function
-# Converts the cell coordinates to their equivalent on the map.
-def cell_to_map_conversion(cell_x, cell_y):
-  map_x = (cell_x - 16.6514905522259) / (-2.9555517292899)
-  map_y = (cell_y - 11.6877761275171) / (3.0048943492781)
-  return map_x, map_y
+actual_cell = find_current_cell_position(world_to_pixel_transformation(HAL.getPose3d().x, HAL.getPose3d().y))
 
-# update_neighboring_cells() function
-# Save the neighbors of the cells already visited and the unvisited cells in the neighbor list.
-def update_neighboring_cells(cell):
-  neighbors_list = [cell.north_neighbor, cell.east_neighbor, cell.south_neighbor, cell.west_neighbor]
-  for neighbor in neighbors_list:
-    if neighbor in free_cells and not neighbor.visited and neighbor not in visited_neighbors: 
-      visited_neighbors.append(neighbor)
-  if cell in visited_neighbors:
-    visited_neighbors.remove(cell)
+for x, y in actual_cell:
+  navigation_gridmap[x][y] = 134
 
-# euclidian_points_distance() function
-# Calculate the Euclidean distance between two points.
-def euclidian_points_distance(a, b):
-  distance = math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
-  return distance
+GUI.showNumpy(navigation_gridmap)
 
-# euclidian_cells_distance() function
-# Calculates the Euclidean distance between two cells.
-def euclidian_cells_distance(origin_distance, destination_distance):
-  destination_x, destination_y = cell_to_map_conversion(destination_distance.column, destination_distance.row) 
-  origin_x, origin_y = cell_to_map_conversion(origin_distance.column, origin_distance.row)
-  distance = euclidian_points_distance([destination_x, destination_y], [origin_x, origin_y])
-  return distance
-
-# find_nearest_free_cell() function
-# Find the nearest cell that has not been visited.
-def find_nearest_free_cell(reference_cell, cells_list):
-  distance = 1000
-  destiny = None
-  for cell in cells_list:
-    if cell in free_cells and euclidian_cells_distance(cell, reference_cell) < distance:
-      distance = euclidian_cells_distance(reference_cell, cell)
-      destiny = cell
-  if destiny is not None:
-    mark_critic_cell(destiny)
-  return destiny, distance
-
-# calculate_next_step() function
-# Find the shortest path from the cell's neighbors.
-def calculate_next_step(current_cell, destiny):
-  neighbors_list = [current_cell.north_neighbor, current_cell.east_neighbor, current_cell.south_neighbor, current_cell.west_neighbor]
-  next_cell, _ = find_nearest_free_cell(destiny, neighbors_list)
-  if next_cell is None:
-    return None, None
-  current_cell = map_to_cell_conversion(HAL.getPose3d().x, HAL.getPose3d().y)
-  if current_cell.row > next_cell.row:
-    next_orientation = NORTH_ORIENTATION
-  elif current_cell.row < next_cell.row:
-    next_orientation = SOUTH_ORIENTATION
-  elif current_cell.column > next_cell.column:
-    next_orientation = WEST_ORIENTATION
-  elif current_cell.column < next_cell.column:
-    next_orientation = EAST_ORIENTATION
-  return next_cell, next_orientation
-
-# set_state() function
-# Sets the orientation the robot is in.
-def set_state(orientation):
-  if orientation == NORTH_ORIENTATION:
-    state = "NORTH"
-  elif orientation == EAST_ORIENTATION:
-    state = "EAST"
-  elif orientation == SOUTH_ORIENTATION:
-    state = "SOUTH"
+for cell in compute_cleaning_path(actual_cell):
+  if cell in critic_cells:
+    critic_cells.remove(cell)
+    for path_cell in compute_cell_path(find_current_cell_position(world_to_pixel_transformation(HAL.getPose3d().x, HAL.getPose3d().y)), cell):
+      execute_motion_control(path_cell[(len(path_cell) - 1) // 2])
   else:
-    state = "WEST"
-  return state
-
-# Returns a numpy array with the image data in a 3 dimensional array (R, G, B, A).
-array = image_conversion(GUI.getMap('/resources/exercises/vacuum_cleaner_loc/images/mapgrannyannie.png'))
-
-# Initialization of map cells.
-cells = generate_cell_matrix(array)
-free_cells = []
-visited_neighbors = []
-
-# Mapping the environment to know which cells are obstacles
-# and which ones have not yet been visited, which are added to a list.
-for row in range(len(cells)):
-  for column in range(len(cells)):
-    set_obstacle_cell(cells[row][column])
-    if (cells[row][column].obstacle == True):
-      mark_visited_cell(cells[row][column])
-    else:
-      free_cells.append(cells[row][column])
-
-set_cell_neighbors(cells)
-
-# Create a grid on the map.
-width, height = array.shape
-for j in range(0, width, 17):
-  cv2.line(array, (j, 0), (j, height), (0, 0, 0), 1)
-for i in range(0, width, 17):
-  cv2.line(array, (0, i), (width, i), (0, 0, 0), 1)
-
-# Shows the map with grid and obstacles.
-GUI.showNumpy(array)
-
-# Initialization of control variables for the execution of the algorithm.
-iterations = 0
-state = "WEST"
-next_orientation = WEST_ORIENTATION
-turn = False
-return_point = False
-path = False
-east_left_turn = False
-
+    execute_motion_control(cell[(len(cell) - 1) // 2])
+      
 while True:
-    
-    # Update map display every 10 iterations.
-    if iterations == 10:
-      GUI.showNumpy(array)
-      iterations = 0
-    current_cell = map_to_cell_conversion(HAL.getPose3d().x, HAL.getPose3d().y)
-
-    # Marks the current cell as visited if it was not already visited.
-    if not current_cell.visited:
-      current_cell.visited_cell()
-      mark_obstacle_cell(current_cell)
-
-    # Management of the robot's rotation to change orientation. 
-    if turn:
-      destiny_orientation = next_orientation
-      if destiny_orientation == EAST_ORIENTATION and not east_left_turn:
-        rotation_difference = abs(HAL.getPose3d().yaw - destiny_orientation)
-        if rotation_difference <= 0.15:
-          HAL.setW(0)
-          turn = False
-      else:
-        if east_left_turn:
-          destiny_orientation = EAST_LEFT_ORIENTATION
-        rotation_difference = abs(HAL.getPose3d().yaw - destiny_orientation)
-        if rotation_difference < 0.1:
-          HAL.setW(0)
-          turn = False
-
-    # Saves neighbors of cells that have already been visited.
-    else:
-      update_neighboring_cells(current_cell)
-
-      # Moment at which the robot must go to a critical point.
-      if return_point:
-        if not path:
-          current_orientation = next_orientation
-          path, next_orientation = calculate_next_step(current_cell, return_point)
-          if path is None:
-            continue
-          turn = True
-          HAL.setV(0)
-          HAL.setW(0.3)
-        else:
-          if current_cell == return_point:
-            return_point = False
-            state = set_state(next_orientation)
-            HAL.setV(0.6)
-          elif current_cell == path:
-            HAL.setV(0)
-            path = False
-          else:
-            HAL.setV(0.6)
-
-      # Check if the robot is at a critical point.
-      else:
-        critical_point = True
-        neighbors_list = [current_cell.north_neighbor, current_cell.east_neighbor, current_cell.south_neighbor, current_cell.west_neighbor]
-        for neighbor in neighbors_list:
-          if neighbor in free_cells and not neighbor.visited:
-            critical_point = False
-            break
-        if critical_point:
-          return_point, _ = find_nearest_free_cell(current_cell, visited_neighbors)
-          path = False
-          state = None
-
-      # State machine based on the BSA algorithm (Backtracking Spiral Algorithm).
-      if (state == "NORTH"):
-        if (current_cell.north_neighbor.obstacle == False) and (current_cell.north_neighbor.visited == False): # x
-          HAL.setV(0.5)
-        else:
-          y_visited_cell = cell_to_map_conversion(current_cell.north_neighbor.column, current_cell.north_neighbor.row)[1]
-          if abs(HAL.getPose3d().y - y_visited_cell) < 0.8:
-            next_orientation = EAST_ORIENTATION
-            turn = True
-            HAL.setV(0)
-            HAL.setW(0.3)
-            state = "EAST"
-      elif (state == "EAST"):
-        if (current_cell.east_neighbor.obstacle == False) and (current_cell.east_neighbor.visited == False):
-          HAL.setV(0.5)
-        else:
-          x_visited_cell = cell_to_map_conversion(current_cell.east_neighbor.column, current_cell.east_neighbor.row)[0]
-          if abs(HAL.getPose3d().x - x_visited_cell) < 0.8:
-            next_orientation = SOUTH_ORIENTATION
-            turn = True
-            HAL.setV(0)
-            HAL.setW(0.3)
-            state = "SOUTH"
-      elif (state == "SOUTH"):
-        if (current_cell.south_neighbor.obstacle == False) and (current_cell.south_neighbor.visited == False):
-          HAL.setV(0.5)
-        else:
-          y_visited_cell = cell_to_map_conversion(current_cell.south_neighbor.column, current_cell.south_neighbor.row)[1]
-          if abs(HAL.getPose3d().y - y_visited_cell) < 0.8:
-            next_orientation = WEST_ORIENTATION
-            turn = True
-            HAL.setV(0)
-            HAL.setW(0.3)
-            state = "WEST"
-      elif (state == "WEST"):
-        if (current_cell.west_neighbor.obstacle == False) and (current_cell.west_neighbor.visited == False):
-          HAL.setV(0.5)
-        else:
-          x_visited_cell = cell_to_map_conversion(current_cell.west_neighbor.column, current_cell.west_neighbor.row)[0]
-          if abs(HAL.getPose3d().x - x_visited_cell) < 0.8:
-            next_orientation = NORTH_ORIENTATION
-            turn = True
-            HAL.setV(0)
-            HAL.setW(0.3)
-            state = "NORTH"
-    iterations += 1
+    print("FULL HOUSE CLEANED SUCCESSFULLY!")
