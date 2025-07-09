@@ -46,4 +46,4 @@ A continuación se detallan los enlaces a las entradas de los blogs correspondie
 
 [BLOG PRÁCTICA 4](https://github.com/aleon2020/RDS_2024-2025/wiki/P4.-Amazon-Warehouse)
 
-[BLOG PRÁCTICA 5](https://github.com/aleon2020/RDS_2024-2025/wiki/P5.-X)
+[BLOG PRÁCTICA 5](https://github.com/aleon2020/RDS_2024-2025/wiki/P5.-Marker-Based-Visual-Loc)
