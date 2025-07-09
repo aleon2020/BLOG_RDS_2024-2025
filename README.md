@@ -32,7 +32,7 @@ Directorio ['Diapositivas Teoría'](https://github.com/aleon2020/RDS_2024-2025/t
 
 ## 3. Prácticas
 
-['Blog de Prácticas'](https://github.com/aleon2020/RDS_2024-2025/wiki): Este directorio contiene cada una de las prácticas realizadas en la asignatura.
+['Blog de Prácticas'](https://github.com/aleon2020/RDS_2024-2025/wiki): Este enlace contiene todos los blogs de cada una de las prácticas realizadas en la asignatura.
 
 ## 4. Blogs de las prácticas
 
